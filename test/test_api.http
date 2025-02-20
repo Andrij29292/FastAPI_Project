@@ -1,0 +1,14 @@
+### Отримати всі книги
+GET http://127.0.0.1:8000/books/all-books
+Accept: application/json
+
+### Створити нову книгу
+POST http://127.0.0.1:8000/books/create-book
+Content-Type: application/json
+
+{
+    "title": "Brave New World",
+    "author": "Aldous Huxley",
+    "description": "Dystopian novel about a futuristic society.",
+    "rating": 9
+}
