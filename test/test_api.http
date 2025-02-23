@@ -1,14 +1,38 @@
-### Отримати всі книги
-GET http://127.0.0.1:8000/books/all-books
-Accept: application/json
+### Read all books
+GET http://127.0.0.1:8000/books
 
-### Створити нову книгу
+### Get book by ID
+GET http://127.0.0.1:8000/books/4
+
+### Read book by published date
+GET http://127.0.0.1:8000/books/read-by-published-date/1949
+
+### Read book by rating
+GET http://127.0.0.1:8000/books/read-by-rating?rating=9
+
+### Create a new book
 POST http://127.0.0.1:8000/books/create-book
 Content-Type: application/json
 
 {
-    "title": "Brave New World",
-    "author": "Aldous Huxley",
-    "description": "Dystopian novel about a futuristic society.",
-    "rating": 9
+    "title": "Test Book",
+    "author": "Test Author",
+    "description": "Test Description",
+    "rating": 7,
+    "published_date": 2023
 }
+
+### Update a book
+PUT http://127.0.0.1:8000/books/update-book/1
+Content-Type: application/json
+
+{
+    "title": "Updated Book",
+    "author": "Updated Author",
+    "description": "Updated Description",
+    "rating": 8,
+    "published_date": 2022
+}
+
+### Delete a book
+DELETE http://127.0.0.1:8000/books/delete-book/1
