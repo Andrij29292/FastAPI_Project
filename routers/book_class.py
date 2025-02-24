@@ -21,3 +21,7 @@ class Book:
         self.description = description
         self.rating = rating
         self.published_date = published_date
+
+
+class Library:
+    
