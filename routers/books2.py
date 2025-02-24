@@ -1,21 +1,22 @@
 from typing import Annotated, Optional
-
 from fastapi import APIRouter, Body, Query, HTTPException, Path
 from pydantic import BaseModel, Field
-from .book_class import Book
+from .book_class import Book, Library
+from starlette import status
 
 books_router = APIRouter()
+library = Library()
 
 Short_text = Annotated[str, Field(max_length=256)]
 
+
 class BookModel(BaseModel):
-    book_id: Optional[int] = Field(description='is not needed on create', default=None)
+    book_id: Optional[int] = Field(description="is not needed on create", default=None)
     title: Short_text
     author: Short_text
     description: Short_text
     rating: int = Field(gt=0, le=10)
     published_date: int = Field(le=2025)
-
 
     model_config = {
         "json_schema_extra": {
@@ -29,87 +30,81 @@ class BookModel(BaseModel):
         }
     }
 
-    def conversion_into_book(self) -> Book:
+    def to_book(self) -> Book:
         return Book(**self.model_dump())
 
-BOOKS_DATABASE: list[Book] = [
-    Book(book_id=1, title="1984", author="George Orwell", description="Dystopian novel about totalitarianism.", rating=9, published_date=1949),
-    Book(book_id=2, title="To Kill a Mockingbird", author="Harper Lee", description="Story of racial injustice in America.", rating=10, published_date=1960),
-    Book(book_id=3, title="The Great Gatsby", author="F. Scott Fitzgerald", description="A critique of the American Dream.", rating=8, published_date=1925),
-    Book(book_id=4, title="Moby-Dick", author="Herman Melville", description="A sailor’s narrative about the white whale.", rating=7, published_date=1851),
-    Book(book_id=5, title="Pride and Prejudice", author="Jane Austen", description="Romantic novel about manners and marriage.", rating=9, published_date=1813)
-]
 
 def detail(_detail: str) -> dict[str, str]:
     return {"detail": _detail}
 
-def generate_book_id(b: Book):
-    b.book_id = BOOKS_DATABASE[-1].book_id + 1 if len(BOOKS_DATABASE) > 0 else 1
-    return b
 
-@books_router.get("")
+@books_router.get("/", status_code=status.HTTP_200_OK)
 async def read_all_books():
-    return BOOKS_DATABASE
+    return library.read_books()
 
 
-
-@books_router.get("/{book_id}")
-async def get_book_by_id(book_id: int = Path(gt=0)):
-    return (b for b in BOOKS_DATABASE if b.book_id == book_id)
-
-
-
-@books_router.get("/read-by-published-date/{published_date}")
+@books_router.get(
+    "/read-by-published-date/{published_date}", status_code=status.HTTP_200_OK
+)
 async def read_book_by_published_date(published_date: int):
-    response = [b for b in BOOKS_DATABASE if b.published_date == published_date]
-
-    if not response:
-        raise HTTPException(status_code=404, detail=f"No books published in {published_date} were found")
-
-    return response
-
-
-
-@books_router.get("/read-by-rating/")
-async def read_book_by_rating(rating: int=Query(..., gt=0, le=10)):
-    response = [b for b in BOOKS_DATABASE if b.rating == rating]
-
-    if not response:
-        raise HTTPException(status_code=404, detail=f"No books with rating: {rating} were found")
-
-    return response
+    books = library.read_by("pub_date", published_date)
+    if not books:
+        raise HTTPException(
+            status_code=404, detail=f"No books published in {published_date} were found"
+        )
+    return books
 
 
+@books_router.get("/read-by-rating", status_code=status.HTTP_200_OK)
+async def read_book_by_rating(
+    rating: int = Query(description="Book rating", le=10, gt=0)
+):
+    books = library.read_by("rating", rating)
+    if not books:
+        raise HTTPException(
+            status_code=404, detail=f"No books with rating: {rating} were found"
+        )
+    return books
 
-@books_router.post("/create-book")
+
+@books_router.get("/read-book-by-id/{book_id}", status_code=status.HTTP_200_OK)
+async def get_book_by_id(book_id: int = Path(gt=0)):
+    books = library.read_by("id", book_id)
+    if not books:
+        raise HTTPException(status_code=404, detail=f"Book with ID {book_id} not found")
+    return books
+
+
+@books_router.post("/create-book", status_code=status.HTTP_201_CREATED)
 async def create_book(new_book: BookModel):
-    BOOKS_DATABASE.append(generate_book_id(new_book.conversion_into_book()))
-
+    book = new_book.to_book()
+    library.add_book(book)
     return detail("book was created")
 
 
-
-@books_router.put("/update-book/{update_book_id}")
+@books_router.put(
+    "/update-book/{update_book_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def update_book(update_book_id: int = Path(gt=0), book: BookModel = Body(...)):
-    for i in range(len(BOOKS_DATABASE)):
-        if BOOKS_DATABASE[i].book_id == update_book_id:
-            book.book_id = update_book_id
-            BOOKS_DATABASE[i] = book.conversion_into_book()
-            return detail("book was updated")
+    try:
+        library.update_book(update_book_id, book.to_book())
+        return detail("book was updated")
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Book with id {update_book_id} not found, can't be updated",
+        )
 
 
-    return detail(f"book with id {update_book_id} were not found, can`t be updated")
-
-
-
-@books_router.delete("/delete-book/{delete_book_id}")
+@books_router.delete(
+    "/delete-book/{delete_book_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_book(delete_book_id: int = Path(gt=0)):
-    for i in range(len(BOOKS_DATABASE)):
-        if BOOKS_DATABASE[i].book_id == delete_book_id:
-            BOOKS_DATABASE.pop(i)
-            return detail(f"book was deleted")
-
-    return detail(f"book with id {delete_book_id} were not found, can`t be deleted")
-
-
-
+    try:
+        library.delete_book(delete_book_id)
+        return detail("book was deleted")
+    except ValueError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Book with id {delete_book_id} not found, can't be deleted",
+        )

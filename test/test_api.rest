@@ -1,8 +1,8 @@
 ### Read all books
-GET http://127.0.0.1:8000/books
+GET http://127.0.0.1:8000/books/
 
 ### Get book by ID
-GET http://127.0.0.1:8000/books/4
+GET http://127.0.0.1:8000/books/read-book-by-id/4
 
 ### Read book by published date
 GET http://127.0.0.1:8000/books/read-by-published-date/1949
@@ -31,7 +31,7 @@ Content-Type: application/json
     "author": "Updated Author",
     "description": "Updated Description",
     "rating": 8,
-    "published_date": 2022
+    "published_date": 1949
 }
 
 ### Delete a book
